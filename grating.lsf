@@ -1,0 +1,150 @@
+###############################################
+## File Name: GANWDM.lsf
+## Descript: For Inverse Design of a Wavelength
+##           Demultiplexer.
+## Author @ Zhenyu ZHAO 2021/02/21
+###############################################
+
+switchtolayout;
+selectall;
+delete;
+
+## Parameters
+waveguidelength = 10e-6;
+designarealength = 17920e-9;### 200nm for single pixel, and the resolution will be 100*100
+waveguidewidth = 0.5e-6;
+
+
+## Silicon structures
+## input waveguide
+addrect;
+set("x min", - designarealength/2 - waveguidelength);
+set("x max", - designarealength/2);
+set("y span",waveguidewidth);
+set("y", 0);
+set("material","Si (Silicon) - Palik");
+set("z min",-0.11e-6);
+set("z max",0.11e-6);
+
+## inverse design region
+addrect;
+set("x min", - designarealength/2 );
+set("x max", designarealength/2);
+set("y span",waveguidewidth);
+set("y", 0);
+set("material","Si (Silicon) - Palik");
+set("z min",-0.11e-6);
+set("z max",0.11e-6);
+
+## through waveguide
+addrect;
+set("x min", designarealength/2 );
+set("x max", designarealength/2 + waveguidelength);
+set("y span",waveguidewidth);
+set("y", 0);
+set("material","Si (Silicon) - Palik");
+set("z min",-0.11e-6);
+set("z max",0.11e-6);
+
+## Source 
+addmode;
+set("name","source");
+set("injection axis","x-axis");
+set("mode selection","fundamental TE mode");
+set("x",- designarealength/2 - waveguidelength/2);
+set("y",0);
+set("y span",2e-6);
+set("z",0);
+set("z span",0.6e-6);
+set('center wavelength',1550e-9);
+set('wavelength span',100e-9);
+
+addpower;
+set("name","fom1");
+set("monitor type",5);  
+set("x", designarealength/2 + waveguidelength/2);
+set("y",0);
+set("y span",2e-6);
+set("z",0.11e-6);
+set("z span",0.6e-6);
+set("override global monitor settings",1);
+set("frequency points",5000);
+
+
+## Add FDTD region
+#### dimension: 1-2D 2-3D
+addfdtd;
+set("dimension",2);  
+set("x min", -designarealength/2 - waveguidelength/2 - 2e-6);
+set("x max", designarealength/2 + waveguidelength/2 + 2e-6);
+set("y min",-waveguidewidth/2 - 3e-6);
+set("y max", waveguidewidth/2 + 3e-6);
+set("z",0);
+set("z span",1.2e-6);
+#set("simulation time",100e-15);
+set("simulation time",5000e-15);
+set("index",1.444);
+set("mesh accuracy",2);
+
+
+## Add Full Profile Monitor 
+#### monitor type: 1-Point 2-Linear X 3-Linear Y 4-Linear Z 5-2D X-normal 6-2D Y-normal
+#### 7-2D Z-normal 8-3D
+addpower;
+set("name","opt_fields");
+set("monitor type",8);  
+set("x min", -designarealength/2 - 1e-6);
+set("x max", designarealength/2 + 1e-6);
+set("y min",-waveguidewidth/2 - 1e-6);
+set("y max", waveguidewidth/2 + 1e-6);
+set("z",0);
+set('z span',0.22e-6);
+set("override global monitor settings",1);
+set("frequency points",1);
+set("output Px",1);
+set("output Py",1);
+set("output Pz",1);
+set("output power",0);
+
+
+## function definition
+function create_silica_rectangle(x,y,x_width,y_width){
+    addrect;
+    set("x", x);
+    set("x span", x_width);
+    set("y", y);
+    set("y span", y_width);
+    set("material","SiO2 (Glass) - Palik");
+    set("z min",-0.11e-6);
+    set("z max",0.11e-6);
+}
+
+function create_silica_image(image_matrix_1D,row){ 
+    #row = 256;
+    designarealength = 17920e-9;
+    waveguidewidth = 500e-9;
+    x_width = designarealength/row;
+    y_width = waveguidewidth;
+    x_start_point = -designarealength/2 + x_width/2;
+    y_start_point = 0;
+    for (row_number = 1:row){
+        if (image_matrix_1D(1,row_number)== -1){
+            create_silica_rectangle(x_start_point+(row_number-1)*x_width, 
+                    y_start_point, 
+                    x_width,y_width);
+        }
+    }
+}
+
+## for test 
+function make_periodic_grating(){
+    grating_numbers = 256;
+    periodic_image = zeros(1,grating_numbers);
+    for (i = 1:grating_numbers){
+        periodic_image(i) = (mod(i,2))*2 - 1;
+    }
+    create_silica_image(periodic_image,grating_numbers);
+}
+
+
+
