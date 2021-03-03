@@ -105,7 +105,29 @@ def compute_effs_and_gradients(gen_imgs, eng, params):
     based_script = BaseScript(based_script_string)  ## initialize based_script with string
     based_script(sim.fdtd)  ## __call__ to create CAD
     CreatePixels(gen_imgs, sim)
+    #sim.remove_data_and_save()
+
+    ## Forward Simulation
+    sim.fdtd.setnamed('source', 'enabled', True)
+    sim.fdtd.setnamed('adjoint_source', 'enabled', False)
+    sim.run("forwardtest", iter=0)
+
+
+    ## derive the fom
+    result_data = sim.fdtd.getresult("fom", "T")
+    effs = result_data['T']
     sim.remove_data_and_save()
+
+
+    ## arrange backward-simulation
+    sim.fdtd.switchtolayout()
+    sim.fdtd.setnamed('source', 'enabled', False) ## disable origin source
+    sim.fdtd.setnamed('adjoint_source', 'enabled', True)
+
+    ## Backward Simulation
+    sim.run("backwordtest", iter=0)
+
+
     # img = matlab.double(imgs.cpu().numpy().tolist())
     # wavelength = matlab.double([params.wavelength] * N)
     # desired_angle = matlab.double([params.angle] * N)
@@ -116,10 +138,9 @@ def compute_effs_and_gradients(gen_imgs, eng, params):
     # effs_and_gradients = Tensor(effs_and_gradients)
     # effs = effs_and_gradients[:, 0]
     # gradients = effs_and_gradients[:, 1:].unsqueeze(1)
-    effs = 0
-    gradients = 0
 
-    return (effs, gradients)
+    #return (effs, gradients)
+    return effs
 
 def CreatePixels(based_matrix,based_simulation):
     lumapi.putMatrix(based_simulation.fdtd.handle, "image_matrix" , based_matrix)
@@ -130,4 +151,4 @@ def CreatePixels(based_matrix,based_simulation):
                                  create_silica_image(image_matrix,row);")
 
 image_matrix = np.random.randint(0, 2, (1, 256))*2-1
-compute_effs_and_gradients(image_matrix,1,1)
+effs = compute_effs_and_gradients(image_matrix,1,1)

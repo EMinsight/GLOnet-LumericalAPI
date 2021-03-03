@@ -50,6 +50,7 @@ set("z max",0.11e-6);
 addmode;
 set("name","source");
 set("injection axis","x-axis");
+set("direction","Forward");
 set("mode selection","fundamental TE mode");
 set("x",- designarealength/2 - waveguidelength/2);
 set("y",0);
@@ -59,8 +60,23 @@ set("z span",0.6e-6);
 set('center wavelength',1550e-9);
 set('wavelength span',100e-9);
 
+## Adjoint Source
+addmode;
+set("name","adjoint_source");
+set("injection axis","x-axis");
+set("direction","Backward");
+set("mode selection","fundamental TE mode");
+set("x",designarealength/2 + waveguidelength/2);
+set("y",0);
+set("y span",2e-6);
+set("z",0);
+set("z span",0.6e-6);
+set('center wavelength',1550e-9);
+set('wavelength span',100e-9);
+
+
 addpower;
-set("name","fom1");
+set("name","fom");
 set("monitor type",5);  
 set("x", designarealength/2 + waveguidelength/2);
 set("y",0);
@@ -69,6 +85,7 @@ set("z",0.11e-6);
 set("z span",0.6e-6);
 set("override global monitor settings",1);
 set("frequency points",5000);
+
 
 
 ## Add FDTD region
@@ -81,8 +98,8 @@ set("y min",-waveguidewidth/2 - 3e-6);
 set("y max", waveguidewidth/2 + 3e-6);
 set("z",0);
 set("z span",1.2e-6);
-#set("simulation time",100e-15);
-set("simulation time",5000e-15);
+set("simulation time",100e-15);
+#set("simulation time",5000e-15);
 set("index",1.444);
 set("mesh accuracy",2);
 
