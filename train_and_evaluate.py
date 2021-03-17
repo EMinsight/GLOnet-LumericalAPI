@@ -168,7 +168,8 @@ def compute_effs_and_gradients(gen_imgs, params , func , jac , callback):
         effs[i,:] = func(geo_params)
         gradients[i,:,:] = jac(geo_params)
         callback()
-
+    effs = Tensor(effs)
+    gradients = Tensor(gradients)
     return (effs, gradients)
 
 

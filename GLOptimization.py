@@ -745,7 +745,6 @@ class Optimization(SuperOptimization):
             penalty_grad = self.geometry.calc_penalty_gradient(self.sim, params)
             grad += penalty_grad
         ## Print Gradients
-        print("I Got It!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print("Gradients Calculated:", grad)
         return grad
 
