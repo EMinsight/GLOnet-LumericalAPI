@@ -54,7 +54,7 @@ class GLOptimizer(Minimizer):
 
         print('GLOnet can Start Here!!!!!!!!!!!!!!!!!!!!!!!!!!')
         output_dir = 'E:\\LAB\\Project GLOnet-LumeircalAPI\\GLOnet-LumericalAPI\\results'
-        restore_from = None
+        restore_from = 'E:\\LAB\\Project GLOnet-LumeircalAPI\\GLOnet-LumericalAPI\\results\\model\\iter11\\model.pth.tar'
 
         json_path = os.path.join(output_dir, 'Params.json')
         assert os.path.isfile(json_path), "No json file found at {}".format(json_path)
@@ -96,24 +96,7 @@ class GLOptimizer(Minimizer):
 
         # Generate images and save
         logging.info('Start generating devices')
-        #evaluate(generator, eng, numImgs=500, params=params)
+        evaluate(generator, func= self.callable_fom, numImgs=10, params=params)
 
-
-        # print('bounds = {}'.format(self.bounds))
-        # print('start = {}'.format(self.start_point))
-        # res = spo.minimize(fun=self.callable_fom,
-        #                    x0=self.start_point,
-        #                    jac=self.callable_jac,
-        #                    bounds=self.bounds,
-        #                    callback=self.callback,
-        #                    options={'maxiter': self.max_iter, 'disp': True, 'gtol': self.pgtol, 'ftol': self.ftol},
-        #                    method=self.method)
-        # res.x /= self.scaling_factor
-        # res.fun = -res.fun
-        # if hasattr(res, 'jac'):
-        #     res.jac = -res.jac * self.scaling_factor
-        # print('Number of FOM evaluations: {}'.format(res.nit))
-        # print('FINAL FOM = {}'.format(res.fun))
-        # print('FINAL PARAMETERS = {}'.format(res.x))
         return
 
