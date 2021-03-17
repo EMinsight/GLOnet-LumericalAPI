@@ -4,6 +4,10 @@
 import numpy as np
 import scipy as sp
 import scipy.optimize as spo
+import os
+from net import Generator
+import torch
+from train import train
 
 from lumopt.optimizers.minimizer import Minimizer
 
@@ -45,9 +49,33 @@ class GLOptimizer(Minimizer):
         self.pgtol = float(pgtol)
         self.ftol = float(ftol)
 
-    def run(self):
+    def run(self): ## train the network with jac
+
         print('GLOnet can Start Here!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        print('Running scipy optimizer')
+        cuda = torch.cuda.is_available()
+        noise_dims = 256
+        gkernlen = 19
+        gkernsig = 6
+        lr = 1e-03
+        beta1 = 0.9
+        beta2 = 0.99
+        step_size = 5000000
+        gamma = 1.0
+        numIter = 1000
+        ## Parameters End
+
+        generator = Generator(noise_dims, gkernlen, gkernsig)
+        if (cuda):
+            generator.cuda()
+
+        optimizer = torch.optim.Adam(generator.parameters(), lr=lr, betas=(beta1, beta2))
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+
+        ## TODO: restore from
+
+        train(generator, optimizer, scheduler, numIter, gkernlen, gkernsig)
+
+
         print('bounds = {}'.format(self.bounds))
         print('start = {}'.format(self.start_point))
         res = spo.minimize(fun=self.callable_fom,
@@ -64,8 +92,5 @@ class GLOptimizer(Minimizer):
         print('Number of FOM evaluations: {}'.format(res.nit))
         print('FINAL FOM = {}'.format(res.fun))
         print('FINAL PARAMETERS = {}'.format(res.x))
-        return res
-
-    def concurrent_adjoint_solves(self):
-        return self.method in ['L-BFGS-B', 'BFGS']
+        return
 

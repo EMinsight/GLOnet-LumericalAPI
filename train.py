@@ -14,7 +14,7 @@ from lumopt.optimization import Optimization
 
 Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
-def train(generator, optimizer, scheduler,numIter,gkernlen,gkernsig):
+def train(generator, optimizer, scheduler,numIter,gkernlen,gkernsig,):
     ## Parameters
     batch_size_start = 100
     batch_size_end = 100
