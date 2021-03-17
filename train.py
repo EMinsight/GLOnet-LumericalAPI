@@ -1,10 +1,16 @@
-import lumapi
 from tqdm import tqdm
 import os
 import utils
 import torch
-from interface import *
 import numpy as np
+import scipy as sp
+from lumopt.utilities.load_lumerical_scripts import load_from_lsf
+from lumopt.utilities.wavelengths import Wavelengths
+from lumopt.geometries.polygon import FunctionDefinedPolygon
+from lumopt.figures_of_merit.modematch import ModeMatch
+from lumopt.optimizers.generic_optimizers import ScipyOptimizers
+from lumopt.optimization import Optimization
+
 
 Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
@@ -116,6 +122,15 @@ def compute_effs_and_gradients(gen_imgs, eng, params):
     ## derive the fom
     result_data = sim.fdtd.getresult("fom", "T")
     effs = result_data['T']
+    forward_fields = get_fields_on_cad(sim.fdtd,
+                                       monitor_name='opt_fields',
+                                       field_result_name='forward_fields',
+                                       get_eps=False,
+                                       get_D=False,
+                                       get_H=False,
+                                       nointerpolation=False,
+                                       unfold_symmetry=True)
+
     sim.remove_data_and_save()
 
 
@@ -125,7 +140,19 @@ def compute_effs_and_gradients(gen_imgs, eng, params):
     sim.fdtd.setnamed('adjoint_source', 'enabled', True)
 
     ## Backward Simulation
-    sim.run("backwordtest", iter=0)
+    sim.run("backwardtest", iter=0)
+
+    adjoint_fields = get_fields_on_cad(sim.fdtd,
+                                         monitor_name = 'opt_fields',
+                                         field_result_name = 'forward_fields',
+                                         get_eps = False,
+                                         get_D = False,
+                                         get_H = False,
+                                         nointerpolation = False ,
+                                         unfold_symmetry = True)
+    sim.remove_data_and_save()
+
+    ## Calculate Gradients
 
 
     # img = matlab.double(imgs.cpu().numpy().tolist())
