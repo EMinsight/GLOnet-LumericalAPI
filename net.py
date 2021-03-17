@@ -10,12 +10,12 @@ Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTen
 
 
 class Generator(nn.Module):
-    def __init__(self, noise_dims,gkernlen,gkernsig):
+    def __init__(self, params):
         super().__init__()
 
-        self.noise_dim = noise_dims
+        self.noise_dim = params.noise_dims
 
-        self.gkernel = gkern1D(gkernlen, gkernsig)
+        self.gkernel = gkern1D(params.gkernlen, params.gkernsig)
 
         self.FC = nn.Sequential(
             nn.Linear(self.noise_dim, 256),
@@ -40,18 +40,11 @@ class Generator(nn.Module):
             )
 
 
-    def forward(self, noise, binary_amp):
+    def forward(self, noise, params):
         net = self.FC(noise)
         net = net.view(-1, 16, 32)
-        net = self.CONV(net)    
+        net = self.CONV(net)
         net = conv1d_meta(net + noise.unsqueeze(1), self.gkernel)
         # net = conv1d_meta(net , self.gkernel)
-        net = torch.tanh(net* binary_amp) * 1.05
+        net = torch.tanh(net* params.binary_amp) * 1.05
         return net
-
-
-
-## For test
-# net = Generator(256,19,6)
-# print(net)
-# torch.save(net, "E:/LAB/Project GLOnet-LumeircalAPI/GLOnet-LumericalAPI/Output/test.pth")

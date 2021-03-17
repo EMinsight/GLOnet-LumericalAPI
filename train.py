@@ -14,43 +14,51 @@ from lumopt.optimization import Optimization
 
 Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
-def train(generator, optimizer, scheduler,numIter,gkernlen,gkernsig,):
-    ## Parameters
-    batch_size_start = 100
-    batch_size_end = 100
-    batch_size_power = 1
-    sigma_start = 0.7
-    sigma_end = 0.7
-    output_dir = "E:/LAB/Project GLOnet-LumeircalAPI/GLOnet-LumericalAPI/Output"
-    noise_dims =256
-    noise_amplitude = 1
-    ## Parameters End
 
+def train(generator, optimizer, scheduler, params ,func,jac,pca=None):
+    generator.train()
 
-    generator.train() ## network to be in training state
+    # initialization
+    if params.restore_from is None:
+        effs_mean_history = []
+        binarization_history = []
+        diversity_history = []
+        iter0 = 0
+    else:
+        effs_mean_history = params.checkpoint['effs_mean_history']
+        binarization_history = params.checkpoint['binarization_history']
+        diversity_history = params.checkpoint['diversity_history']
+        iter0 = params.checkpoint['iter']
 
-    effs_mean_history = []
-    binarization_history = []
-    diversity_history = []
-    iter0 = 0
-
-    with tqdm(total=numIter) as t:
+    # training loop
+    with tqdm(total=params.numIter) as t:
         it = 0
         while True:
             it += 1
-            iter = it + iter0
-            normIter = iter / numIter
-            batch_size = int(batch_size_start + (batch_size_end - batch_size_start) * (
-                        1 - (1 - normIter) ** batch_size_power))
-            sigma = sigma_start + (sigma_end - sigma_start) * normIter
-            scheduler.step()
-            if iter < 1000:
-                binary_amp = int(iter / 100) + 1
-            else:
-                binary_amp = 10
+            params.iter = it + iter0
 
-            if it % 5000 == 0 or it > numIter:
-                model_dir = os.path.join(output_dir, 'model', 'iter{}'.format(it + iter0))
+            # normalized iteration number
+            normIter = params.iter / params.numIter
+
+            # specify current batch size
+            params.batch_size = int(params.batch_size_start + (params.batch_size_end - params.batch_size_start) * (
+                        1 - (1 - normIter) ** params.batch_size_power))
+
+            # sigma decay
+            params.sigma = params.sigma_start + (params.sigma_end - params.sigma_start) * normIter
+
+            # learning rate decay
+            scheduler.step()
+
+            # binarization amplitude in the tanh function
+            if params.iter < 1000:
+                params.binary_amp = int(params.iter / 100) + 1
+            else:
+                params.binary_amp = 10
+
+            # save model
+            if it % 5000 == 0 or it > params.numIter:
+                model_dir = os.path.join(params.output_dir, 'model', 'iter{}'.format(it + iter0))
                 os.makedirs(model_dir, exist_ok=True)
                 utils.save_checkpoint({'iter': it + iter0 - 1,
                                        'gen_state_dict': generator.state_dict(),
@@ -61,121 +69,81 @@ def train(generator, optimizer, scheduler,numIter,gkernlen,gkernsig,):
                                        'diversity_history': diversity_history
                                        },
                                       checkpoint=model_dir)
+
             # terminate the loop
-            if it > numIter:
+            if it > params.numIter:
                 return
 
-            # sample  z
-            z = sample_z(batch_size, noise_dims , noise_amplitude)
+                # sample  z
+            z = sample_z(params.batch_size, params)
 
             # generate a batch of iamges
-            gen_imgs = generator(z, noise_dims,gkernlen,gkernsig)
+            gen_imgs = generator(z, params)
+            print("Generated Images !!!!!!")
+            print(gen_imgs.shape())
 
-            # calculate efficiencies and gradients using EM solver
-            wavelength = 1550
-            effs, gradients = compute_effs_and_gradients(gen_imgs, wavelength) ## to call Lumerical APIs
+            # # calculate efficiencies and gradients using EM solver
+            # effs, gradients = compute_effs_and_gradients(gen_imgs, eng, params)
+            #
+            # # free optimizer buffer
+            # optimizer.zero_grad()
+            #
+            # # construct the loss function
+            # binary_penalty = params.binary_penalty_start if params.iter < params.binary_step_iter else params.binary_penalty_end
+            # g_loss = global_loss_function(gen_imgs, effs, gradients, params.sigma, binary_penalty)
+            #
+            # # train the generator
+            # g_loss.backward()
+            # optimizer.step()
+
+            # evaluate
+            # if it % params.plot_iter == 0:
+            #     generator.eval()
+            #
+            #     # vilualize generated images at various conditions
+            #     visualize_generated_images(generator, params)
+            #
+            #     # evaluate the performance of current generator
+            #     effs_mean, binarization, diversity = evaluate_training_generator(generator, eng, params)
+            #
+            #     # add to history
+            #     effs_mean_history.append(effs_mean)
+            #     binarization_history.append(binarization)
+            #     diversity_history.append(diversity)
+            #
+            #     # plot current history
+            #     utils.plot_loss_history((effs_mean_history, diversity_history, binarization_history), params)
+            #     generator.train()
+
+            t.update()
 
 
-
-
-
-
-
-def sample_z(batch_size, noise_dims , noise_amplitude):
+def sample_z(batch_size, params):
     '''
     smaple noise vector z
     '''
-    return (torch.rand(batch_size, noise_dims).type(Tensor)*2.-1.) * noise_amplitude
+    return (torch.rand(batch_size, params.noise_dims).type(Tensor)*2.-1.) * params.noise_amplitude
 
 
-def compute_effs_and_gradients(gen_imgs, eng, params):
+def global_loss_function(gen_imgs, effs, gradients, sigma=0.5, binary_penalty=0):
     '''
-    Call Lumerical APIs to finish calculation of EM features and gradient
     Args:
-        imgs: N x C x H
-        labels: N x labels_dim
-        eng: matlab engine
-        params: parameters
-
-    Returns:
+        gen_imgs: N x C x H (x W)
         effs: N x 1
-        gradients: N x C x H
+        gradients: N x C x H (x W)
+        max_effs: N x 1
+        sigma: scalar
+        binary_penalty: scalar
     '''
-    # convert from tensor to numpy array
-    #imgs = gen_imgs.clone().detach()
-    #N = imgs.size(0)
-    workingDir = "E:\LAB\Project GLOnet-LumeircalAPI\GLOnet-LumericalAPI"
-    hide_fdtd_cad = 0
-    sim = Simulation(workingDir, hide_fdtd_cad)
-    based_script_string = load_from_lsf("grating.lsf")
-    based_script = BaseScript(based_script_string)  ## initialize based_script with string
-    based_script(sim.fdtd)  ## __call__ to create CAD
-    CreatePixels(gen_imgs, sim)
-    #sim.remove_data_and_save()
 
-    ## Forward Simulation
-    sim.fdtd.setnamed('source', 'enabled', True)
-    sim.fdtd.setnamed('adjoint_source', 'enabled', False)
-    sim.run("forwardtest", iter=0)
+    # efficiency loss
+    eff_loss_tensor = - gen_imgs * gradients * (1. / sigma) * (torch.exp(effs / sigma)).view(-1, 1, 1)
+    eff_loss = torch.sum(torch.mean(eff_loss_tensor, dim=0).view(-1))
 
+    # binarization loss
+    binary_loss = - torch.mean(torch.abs(gen_imgs.view(-1)) * (2.0 - torch.abs(gen_imgs.view(-1))))
 
-    ## derive the fom
-    result_data = sim.fdtd.getresult("fom", "T")
-    effs = result_data['T']
-    forward_fields = get_fields_on_cad(sim.fdtd,
-                                       monitor_name='opt_fields',
-                                       field_result_name='forward_fields',
-                                       get_eps=False,
-                                       get_D=False,
-                                       get_H=False,
-                                       nointerpolation=False,
-                                       unfold_symmetry=True)
+    # total loss
+    loss = eff_loss + binary_loss * binary_penalty
 
-    sim.remove_data_and_save()
-
-
-    ## arrange backward-simulation
-    sim.fdtd.switchtolayout()
-    sim.fdtd.setnamed('source', 'enabled', False) ## disable origin source
-    sim.fdtd.setnamed('adjoint_source', 'enabled', True)
-
-    ## Backward Simulation
-    sim.run("backwardtest", iter=0)
-
-    adjoint_fields = get_fields_on_cad(sim.fdtd,
-                                         monitor_name = 'opt_fields',
-                                         field_result_name = 'forward_fields',
-                                         get_eps = False,
-                                         get_D = False,
-                                         get_H = False,
-                                         nointerpolation = False ,
-                                         unfold_symmetry = True)
-    sim.remove_data_and_save()
-
-    ## Calculate Gradients
-
-
-    # img = matlab.double(imgs.cpu().numpy().tolist())
-    # wavelength = matlab.double([params.wavelength] * N)
-    # desired_angle = matlab.double([params.angle] * N)
-    #
-    # # call matlab function to compute efficiencies and gradients
-    #
-    # effs_and_gradients = eng.GradientFromSolver_1D_parallel(img, wavelength, desired_angle)
-    # effs_and_gradients = Tensor(effs_and_gradients)
-    # effs = effs_and_gradients[:, 0]
-    # gradients = effs_and_gradients[:, 1:].unsqueeze(1)
-
-    #return (effs, gradients)
-    return effs
-
-def CreatePixels(based_matrix,based_simulation):
-    lumapi.putMatrix(based_simulation.fdtd.handle, "image_matrix" , based_matrix)
-    lumapi.putMatrix(based_simulation.fdtd.handle, "image_shape" , based_matrix.shape)
-    based_simulation.fdtd.eval( "row = image_shape(2); \
-                                 col = image_shape(1); \
-                                 image_matrix; \
-                                 create_silica_image(image_matrix,row);")
-
-image_matrix = np.random.randint(0, 2, (1, 256))*2-1
-effs = compute_effs_and_gradients(image_matrix,1,1)
+    return loss

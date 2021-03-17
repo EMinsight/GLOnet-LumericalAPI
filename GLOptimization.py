@@ -296,7 +296,8 @@ class SuperOptimization(object):
             ## If not, we assume it is meant relative to the path of the script which called this script
             working_dir = os.path.abspath(os.path.join(self.base_file_path, working_dir))
 
-        ## Check if the provided path already ends with _xxxx (where xxxx is a number)
+        ## Check if the provided path already ends
+        # with _xxxx (where xxxx is a number)
         result = re.match(r'_\d+$', working_dir)
         without_suffix = re.sub(r'_\d+$', '', working_dir)
         suffix_num = int(result[1:]) if result else 0
@@ -365,8 +366,8 @@ class SuperOptimization(object):
 
                 self.optimizer.run()
 
-        final_fom = np.abs(self.fom_hist[-1])
-        return final_fom, self.params_hist[-1]
+        #final_fom = np.abs(self.fom_hist[-1])
+        return #final_fom, self.params_hist[-1]
 
 
 class Optimization(SuperOptimization):
@@ -478,8 +479,8 @@ class Optimization(SuperOptimization):
                 self.optimizer.reset_start_params(self.params_hist[-1], 0.05)  # < Run the scaling analysis again
                 self.optimizer.run()
 
-        final_fom = np.abs(self.fom_hist[-1])
-        return final_fom, self.params_hist[-1]
+        #final_fom = np.abs(self.fom_hist[-1])
+        return #final_fom, self.params_hist[-1]
 
     def plotting_function(self, params):
         ## Add the last FOM evaluation to the list of FOMs that we wish to plot. This removes entries caused by linesearches etc.

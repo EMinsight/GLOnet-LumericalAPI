@@ -1,13 +1,14 @@
 """ Copyright chriskeraly
     Copyright (c) 2019 Lumerical Inc. """
 
-import numpy as np
-import scipy as sp
-import scipy.optimize as spo
 import os
-from net import Generator
-import torch
+import logging
+import argparse
+import numpy as np
 from train import train
+from net import Generator
+import utils
+import torch
 
 from lumopt.optimizers.minimizer import Minimizer
 
@@ -52,45 +53,67 @@ class GLOptimizer(Minimizer):
     def run(self): ## train the network with jac
 
         print('GLOnet can Start Here!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        cuda = torch.cuda.is_available()
-        noise_dims = 256
-        gkernlen = 19
-        gkernsig = 6
-        lr = 1e-03
-        beta1 = 0.9
-        beta2 = 0.99
-        step_size = 5000000
-        gamma = 1.0
-        numIter = 1000
-        ## Parameters End
+        output_dir = 'E:\\LAB\\Project GLOnet-LumeircalAPI\\GLOnet-LumericalAPI\\results'
+        restore_from = None
 
-        generator = Generator(noise_dims, gkernlen, gkernsig)
-        if (cuda):
+        json_path = os.path.join(output_dir, 'Params.json')
+        assert os.path.isfile(json_path), "No json file found at {}".format(json_path)
+        params = utils.Params(json_path)
+
+        params.output_dir = output_dir
+        params.cuda = torch.cuda.is_available()
+        params.restore_from = restore_from
+        params.numIter = int(params.numIter)
+        params.noise_dims = int(params.noise_dims)
+        params.gkernlen = int(params.gkernlen)
+        params.step_size = int(params.step_size)
+
+        # make directory
+        os.makedirs(output_dir + '/outputs', exist_ok=True)
+        os.makedirs(output_dir + '/model', exist_ok=True)
+        os.makedirs(output_dir + '/figures/histogram', exist_ok=True)
+        os.makedirs(output_dir + '/figures/deviceSamples', exist_ok=True)
+
+        generator = Generator(params)
+        if params.cuda:
             generator.cuda()
 
-        optimizer = torch.optim.Adam(generator.parameters(), lr=lr, betas=(beta1, beta2))
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+        # Define the optimizer
+        optimizer = torch.optim.Adam(generator.parameters(), lr=params.lr, betas=(params.beta1, params.beta2))
 
-        ## TODO: restore from
+        # Define the scheduler
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=params.step_size, gamma=params.gamma)
 
-        train(generator, optimizer, scheduler, numIter, gkernlen, gkernsig)
+        # Load model data
+        if restore_from is not None:
+            params.checkpoint = utils.load_checkpoint(restore_from, generator, optimizer, scheduler)
+            logging.info('Model data loaded')
+
+        # Train the model and save
+        if params.numIter != 0:
+            logging.info('Start training')
+            train(generator, optimizer, scheduler, params, func = self.callable_fom , jac = self.callable_jac)
+
+        # Generate images and save
+        logging.info('Start generating devices')
+        #evaluate(generator, eng, numImgs=500, params=params)
 
 
-        print('bounds = {}'.format(self.bounds))
-        print('start = {}'.format(self.start_point))
-        res = spo.minimize(fun=self.callable_fom,
-                           x0=self.start_point,
-                           jac=self.callable_jac,
-                           bounds=self.bounds,
-                           callback=self.callback,
-                           options={'maxiter': self.max_iter, 'disp': True, 'gtol': self.pgtol, 'ftol': self.ftol},
-                           method=self.method)
-        res.x /= self.scaling_factor
-        res.fun = -res.fun
-        if hasattr(res, 'jac'):
-            res.jac = -res.jac * self.scaling_factor
-        print('Number of FOM evaluations: {}'.format(res.nit))
-        print('FINAL FOM = {}'.format(res.fun))
-        print('FINAL PARAMETERS = {}'.format(res.x))
+        # print('bounds = {}'.format(self.bounds))
+        # print('start = {}'.format(self.start_point))
+        # res = spo.minimize(fun=self.callable_fom,
+        #                    x0=self.start_point,
+        #                    jac=self.callable_jac,
+        #                    bounds=self.bounds,
+        #                    callback=self.callback,
+        #                    options={'maxiter': self.max_iter, 'disp': True, 'gtol': self.pgtol, 'ftol': self.ftol},
+        #                    method=self.method)
+        # res.x /= self.scaling_factor
+        # res.fun = -res.fun
+        # if hasattr(res, 'jac'):
+        #     res.jac = -res.jac * self.scaling_factor
+        # print('Number of FOM evaluations: {}'.format(res.nit))
+        # print('FINAL FOM = {}'.format(res.fun))
+        # print('FINAL PARAMETERS = {}'.format(res.x))
         return
 
