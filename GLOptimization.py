@@ -583,8 +583,6 @@ class Optimization(SuperOptimization):
 
     def make_forward_sim(self, params, iter):
         self.sim.fdtd.switchtolayout()
-        print("got params:",params)
-        print("iter:",iter,"Geo Update?")
         self.geometry.update_geometry(params, self.sim)
         self.geometry.add_geo(self.sim, params=None, only_update=True)
         Optimization.deactivate_all_sources(self.sim)
