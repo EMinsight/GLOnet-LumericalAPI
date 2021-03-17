@@ -24,3 +24,6 @@ __pycache__
 *.log
 /opts_*
 Adjointtest.py
+/results/figures
+/results/model
+/results/outputs

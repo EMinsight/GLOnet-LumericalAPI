@@ -18,11 +18,11 @@ class Generator(nn.Module):
         self.gkernel = gkern1D(params.gkernlen, params.gkernsig)
 
         self.FC = nn.Sequential(
-            nn.Linear(self.noise_dim, 256),
+            nn.Linear(self.noise_dim, 16),
             nn.LeakyReLU(0.2),
             nn.Dropout(p=0.2),
-            nn.Linear(256, 32*16, bias=False),
-            nn.BatchNorm1d(32*16),
+            nn.Linear(16, 2*16, bias=False),
+            nn.BatchNorm1d(2*16),
             nn.LeakyReLU(0.2),
         )
 
@@ -42,7 +42,7 @@ class Generator(nn.Module):
 
     def forward(self, noise, params):
         net = self.FC(noise)
-        net = net.view(-1, 16, 32)
+        net = net.view(-1, 16, 2)
         net = self.CONV(net)
         net = conv1d_meta(net + noise.unsqueeze(1), self.gkernel)
         # net = conv1d_meta(net , self.gkernel)

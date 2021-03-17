@@ -5,12 +5,12 @@ import os
 import logging
 import argparse
 import numpy as np
-from train import train
+from train_and_evaluate import train,evaluate
 from net import Generator
 import utils
 import torch
 
-from lumopt.optimizers.minimizer import Minimizer
+from  minimizer import Minimizer
 
 
 class GLOptimizer(Minimizer):
@@ -92,7 +92,7 @@ class GLOptimizer(Minimizer):
         # Train the model and save
         if params.numIter != 0:
             logging.info('Start training')
-            train(generator, optimizer, scheduler, params, func = self.callable_fom , jac = self.callable_jac)
+            train(generator, optimizer, scheduler, params, func = self.callable_fom , jac = self.callable_jac, callback = self.callback)
 
         # Generate images and save
         logging.info('Start generating devices')

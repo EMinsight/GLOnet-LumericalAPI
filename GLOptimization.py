@@ -91,7 +91,6 @@ class SuperOptimization(object):
 
         def callable_fom(params):
             self.optimizations[0].sim.fdtd.clearjobs()
-            print('Making forward solves')
 
             def make_forward_solve(optimization, opt_iter=self.optimizer.iteration, params=params):
                 jobs = list()
@@ -584,6 +583,8 @@ class Optimization(SuperOptimization):
 
     def make_forward_sim(self, params, iter):
         self.sim.fdtd.switchtolayout()
+        print("got params:",params)
+        print("iter:",iter,"Geo Update?")
         self.geometry.update_geometry(params, self.sim)
         self.geometry.add_geo(self.sim, params=None, only_update=True)
         Optimization.deactivate_all_sources(self.sim)
@@ -642,7 +643,8 @@ class Optimization(SuperOptimization):
 
         self.sim.fdtd.clearjobs()
         iter = self.optimizer.iteration if self.store_all_simulations else 0
-        print('Making forward solve')
+        # print('Making forward solve')
+        # print("With params:", params)
         forward_job_name = self.make_forward_sim(params, iter)
         self.sim.fdtd.addjob(forward_job_name)
         if self.optimizer.concurrent_adjoint_solves():
