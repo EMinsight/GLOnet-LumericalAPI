@@ -165,7 +165,7 @@ def compute_effs_and_gradients(gen_imgs, params , func , jac , callback):
     for i in range(0,N):
         geo_params = imgs.cpu().numpy()[i,:,:].flatten()
         # print("sent params:",geo_params)
-        effs[i,:] = func(geo_params)
+        effs[i,:] = -func(geo_params)
         gradients[i,:,:] = jac(geo_params)
         callback()
     effs = Tensor(effs)
@@ -189,7 +189,7 @@ def evaluate_training_generator(generator, func,params, num_imgs=10):
     imgs = generator(z, params)
 
     # efficiencies of generated images
-    effs = compute_effs(imgs, params)
+    effs = compute_effs(imgs, func,params)
     effs_mean = torch.mean(effs.view(-1))
 
     # binarization of generated images

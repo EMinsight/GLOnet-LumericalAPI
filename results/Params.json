@@ -3,7 +3,7 @@
     "angle": 1,
     "noise_dims": 16.0,
     "noise_amplitude": 1,
-    "numIter": 0.0,
+    "numIter": 10.0,
     "gkernlen": 19.0,
     "gkernsig": 6.0,
     "lr": 1e-03,
@@ -21,6 +21,6 @@
     "gamma": 1.0,
     "sigma_start": 0.7,
     "sigma_end": 0.7,
-    "plot_iter": 50,
+    "plot_iter": 1,
     "binary_amp": 1
 }   
